@@ -1,5 +1,15 @@
 use std::{sync::{Arc, Mutex, mpsc}, thread};
 
+trait FnBox {
+  fn call_box(self: Box<Self>);
+}
+
+impl <F: FnOnce()> FnBox for F {
+    fn call_box(self: Box<Self>) {
+        (*self)()
+    }
+}
+
 struct Worker {
   id: usize,
   thread: thread::JoinHandle<()>,
@@ -11,7 +21,7 @@ impl Worker {
       loop {
         let job = reciever.lock().unwrap().recv().unwrap();
         println!("Worker {} got a job; executing.", id);
-        (*job)();
+        job.call_box();
       }
     });
 
@@ -19,7 +29,7 @@ impl Worker {
   }
 }
 
-type Job = Box<FnOnce() + Send + 'static>;
+type Job = Box<dyn FnBox + Send + 'static>;
 
 pub struct ThreadPool {
   workers: Vec<Worker>,
